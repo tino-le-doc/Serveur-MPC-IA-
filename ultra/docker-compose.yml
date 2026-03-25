@@ -1,0 +1,49 @@
+version: "3.9"
+
+services:
+  mcp-ultra:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-ultra
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    volumes:
+      - ./ultra.db:/app/ultra.db
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+  mcp-finance:
+    build:
+      context: ../finance
+      dockerfile: ../ultra/Dockerfile.finance
+    container_name: mcp-finance
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    restart: unless-stopped
+
+  mcp-surveillance:
+    build:
+      context: ../surveillance
+      dockerfile: ../ultra/Dockerfile.surveillance
+    container_name: mcp-surveillance
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    volumes:
+      - ../surveillance/surveillance.db:/app/surveillance.db
+    network_mode: host
+    restart: unless-stopped
+
+  saas-api:
+    build:
+      context: ../saas
+      dockerfile: ../ultra/Dockerfile.saas
+    container_name: saas-api
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../saas/saas.db:/app/saas.db
+    restart: unless-stopped
