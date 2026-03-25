@@ -1,0 +1,89 @@
+{
+  "name": "mcp-ia-desktop",
+  "version": "1.0.0",
+  "description": "MCP IA — Application desktop (Mac & Windows)",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "NODE_ENV=development electron .",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "build:all": "electron-builder --mac --win"
+  },
+  "build": {
+    "appId": "com.mcpia.desktop",
+    "productName": "MCP IA",
+    "copyright": "Copyright © 2025",
+    "asar": true,
+    "files": [
+      "main.js",
+      "preload.js",
+      "splash.html",
+      "assets/**"
+    ],
+    "extraResources": [
+      {
+        "from": "../saas",
+        "to": "saas",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../finance",
+        "to": "finance",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../surveillance",
+        "to": "surveillance",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../ultra",
+        "to": "ultra",
+        "filter": ["**/*"]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "assets/icon.icns",
+      "target": [
+        {"target": "dmg", "arch": ["x64", "arm64"]},
+        {"target": "zip", "arch": ["x64", "arm64"]}
+      ],
+      "darkModeSupport": true,
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "assets/entitlements.mac.plist",
+      "entitlementsInherit": "assets/entitlements.mac.plist"
+    },
+    "dmg": {
+      "title": "MCP IA",
+      "background": "assets/dmg-background.png",
+      "iconSize": 100,
+      "window": {"width": 540, "height": 380}
+    },
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": [
+        {"target": "nsis", "arch": ["x64"]},
+        {"target": "portable", "arch": ["x64"]}
+      ],
+      "publisherName": "MCP IA"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "MCP IA"
+    }
+  },
+  "dependencies": {
+    "electron-store": "^10.0.0",
+    "find-free-port": "^2.0.0"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^25.0.0"
+  }
+}

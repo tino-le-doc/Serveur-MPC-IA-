@@ -2,7 +2,15 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="MCP IA" />
+  <meta name="theme-color" content="#6c63ff" />
+  <meta name="description" content="Plateforme IA multi-modules propulsée par Claude" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <title>MCP IA — Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
@@ -545,6 +553,59 @@ function authFetch(path, method = 'GET', body = null) {
   const opts = { method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } };
   if (body) opts.body = JSON.stringify(body);
   return fetch(API + path, opts);
+}
+
+// ─── PWA : Service Worker ────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => console.log('[PWA] Service Worker enregistré', reg.scope))
+      .catch(err => console.warn('[PWA] SW non enregistré :', err));
+  });
+}
+
+// ─── PWA : Bouton "Installer l'app" ──────────
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  showInstallBanner();
+});
+
+function showInstallBanner() {
+  if (document.getElementById('installBanner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'installBanner';
+  banner.style.cssText = `
+    position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);
+    background:#1a1d27;border:1px solid #6c63ff;border-radius:12px;
+    padding:.8rem 1.2rem;display:flex;align-items:center;gap:.8rem;
+    box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:9999;font-size:.88rem;
+  `;
+  banner.innerHTML = `
+    <span>📱 Installer MCP IA comme application</span>
+    <button onclick="installPWA()" style="padding:.4rem .9rem;background:#6c63ff;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600">Installer</button>
+    <button onclick="this.parentElement.remove()" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:1.1rem">✕</button>
+  `;
+  document.body.appendChild(banner);
+}
+
+async function installPWA() {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  const { outcome } = await deferredInstallPrompt.userChoice;
+  if (outcome === 'accepted') document.getElementById('installBanner')?.remove();
+  deferredInstallPrompt = null;
+}
+
+window.addEventListener('appinstalled', () => {
+  document.getElementById('installBanner')?.remove();
+  console.log('[PWA] Application installée !');
+});
+
+// ─── Détection Electron ──────────────────────
+if (window.electronAPI?.isElectron) {
+  console.log('[Desktop] Mode Electron détecté — plateforme :', window.electronAPI.platform);
 }
 </script>
 </body>

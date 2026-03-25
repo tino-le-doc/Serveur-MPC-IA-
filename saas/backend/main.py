@@ -6,7 +6,6 @@ API REST + intégration MCP Finance & Surveillance + SQLite
 import os
 import sqlite3
 import json
-import hashlib
 import secrets
 from datetime import datetime
 from pathlib import Path
@@ -120,7 +119,7 @@ class StockRequest(BaseModel):
 
 
 class PortfolioRequest(BaseModel):
-    positions: list  # [{"symbol": "AAPL", "quantity": 10, "avg_price": 150}]
+    positions: list
 
 
 class AlertRequest(BaseModel):
@@ -216,7 +215,6 @@ def analyze_stock(
 ):
     try:
         import yfinance as yf
-        import pandas as pd
 
         df = yf.Ticker(req.symbol.upper()).history(period="3mo")
         if df.empty:
@@ -346,7 +344,7 @@ def list_alerts(
 
 
 # ─────────────────────────────────────────────
-# Routes — Dashboard & Stats
+# Routes — Stats
 # ─────────────────────────────────────────────
 
 @app.get("/api/stats")
@@ -377,8 +375,26 @@ def get_stats(
 
 
 # ─────────────────────────────────────────────
-# Serve frontend
+# Serve static files + frontend
 # ─────────────────────────────────────────────
+
+# Servir les icônes PWA et autres assets statiques
+if FRONTEND_PATH.exists():
+    app.mount("/icons", StaticFiles(directory=str(FRONTEND_PATH / "icons")), name="icons")
+
+@app.get("/manifest.json")
+def serve_manifest():
+    manifest_path = FRONTEND_PATH / "manifest.json"
+    if manifest_path.exists():
+        return FileResponse(manifest_path, media_type="application/manifest+json")
+    raise HTTPException(status_code=404, detail="manifest.json non trouvé")
+
+@app.get("/sw.js")
+def serve_sw():
+    sw_path = FRONTEND_PATH / "sw.js"
+    if sw_path.exists():
+        return FileResponse(sw_path, media_type="application/javascript")
+    raise HTTPException(status_code=404, detail="sw.js non trouvé")
 
 @app.get("/")
 def root():
@@ -387,4 +403,5 @@ def root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
