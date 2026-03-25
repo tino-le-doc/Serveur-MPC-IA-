@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="MCP IA" />
+  <meta name="theme-color" content="#6c63ff" />
+  <meta name="description" content="Plateforme IA multi-modules propulsée par Claude" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <title>MCP IA — Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3e;
+      --accent: #6c63ff; --accent2: #00d4aa; --danger: #ff4757;
+      --warn: #ffa502; --text: #e2e8f0; --muted: #64748b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+    /* Layout */
+    .app { display: flex; height: 100vh; overflow: hidden; }
+    .sidebar {
+      width: 240px; background: var(--surface); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; padding: 1.5rem 1rem; gap: 0.5rem;
+      flex-shrink: 0;
+    }
+    .sidebar .logo { font-size: 1.2rem; font-weight: 700; color: var(--accent); margin-bottom: 1.5rem; padding-left: 0.5rem; }
+    .nav-item {
+      padding: 0.65rem 0.8rem; border-radius: 8px; cursor: pointer;
+      color: var(--muted); font-size: 0.9rem; display: flex; align-items: center; gap: 0.6rem;
+      transition: all .2s;
+    }
+    .nav-item:hover, .nav-item.active { background: rgba(108,99,255,.15); color: var(--text); }
+    .nav-item.active { color: var(--accent); font-weight: 600; }
+
+    .main { flex: 1; overflow-y: auto; padding: 2rem; }
+    .page { display: none; }
+    .page.active { display: block; }
+
+    h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 1.5rem; }
+    h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+
+    /* Cards */
+    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 1.2rem; transition: transform .2s;
+    }
+    .card:hover { transform: translateY(-2px); }
+    .card .label { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.4rem; }
+    .card .value { font-size: 1.8rem; font-weight: 700; }
+    .card .sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.3rem; }
+    .card.accent .value { color: var(--accent); }
+    .card.green .value { color: var(--accent2); }
+    .card.red .value { color: var(--danger); }
+    .card.warn .value { color: var(--warn); }
+
+    /* Charts */
+    .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+    .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.2rem; }
+    .chart-card canvas { max-height: 200px; }
+
+    /* Forms */
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.4rem; }
+    input, textarea, select {
+      width: 100%; padding: 0.65rem 0.8rem; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 0.9rem; outline: none;
+      transition: border-color .2s;
+    }
+    input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+    textarea { min-height: 100px; resize: vertical; font-family: inherit; }
+    .btn {
+      padding: 0.65rem 1.4rem; border: none; border-radius: 8px; cursor: pointer;
+      font-size: 0.9rem; font-weight: 600; transition: all .2s;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #5a54d4; }
+    .btn-success { background: var(--accent2); color: #000; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* Auth */
+    .auth-container {
+      max-width: 400px; margin: 5vh auto; padding: 2rem;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    }
+    .auth-container h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .auth-container p { color: var(--muted); margin-bottom: 1.5rem; font-size: 0.9rem; }
+
+    /* Table */
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th { padding: 0.6rem 0.8rem; text-align: left; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); }
+    td { padding: 0.65rem 0.8rem; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: rgba(255,255,255,.02); }
+
+    /* Badge */
+    .badge {
+      display: inline-block; padding: 0.2rem 0.6rem; border-radius: 20px;
+      font-size: 0.75rem; font-weight: 600;
+    }
+    .badge-green { background: rgba(0,212,170,.15); color: var(--accent2); }
+    .badge-red { background: rgba(255,71,87,.15); color: var(--danger); }
+    .badge-warn { background: rgba(255,165,2,.15); color: var(--warn); }
+    .badge-blue { background: rgba(108,99,255,.15); color: var(--accent); }
+
+    /* Response box */
+    .response-box {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+      padding: 1rem; margin-top: 1rem; white-space: pre-wrap; font-size: 0.88rem;
+      max-height: 400px; overflow-y: auto; display: none;
+    }
+
+    /* Progress bars */
+    .metric-bar { margin-bottom: 0.8rem; }
+    .metric-bar .info { display: flex; justify-content: space-between; margin-bottom: 0.3rem; font-size: 0.85rem; }
+    .bar-track { background: var(--border); border-radius: 4px; height: 8px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 4px; transition: width .8s ease; }
+
+    /* Spinner */
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Alert items */
+    .alert-item { padding: 0.8rem 1rem; border-radius: 8px; margin-bottom: 0.6rem; border-left: 3px solid; }
+    .alert-item.CRITICAL { background: rgba(255,71,87,.08); border-color: var(--danger); }
+    .alert-item.WARNING  { background: rgba(255,165,2,.08);  border-color: var(--warn); }
+    .alert-item.INFO     { background: rgba(108,99,255,.08); border-color: var(--accent); }
+    .alert-item .ts { font-size: 0.75rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════
+     AUTH SCREEN
+══════════════════════════════════════════════ -->
+<div id="authScreen">
+  <div class="auth-container">
+    <h1>🤖 MCP IA Dashboard</h1>
+    <p>Plateforme d'intelligence artificielle propulsée par Claude</p>
+
+    <div id="loginForm">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="loginEmail" placeholder="vous@exemple.com" />
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-bottom:.8rem" onclick="doLogin()">Se connecter</button>
+      <button class="btn" style="width:100%;background:var(--border)" onclick="showRegister()">Créer un compte</button>
+    </div>
+
+    <div id="registerForm" style="display:none">
+      <div class="form-group">
+        <label>Nom</label>
+        <input type="text" id="regName" placeholder="Votre nom" />
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="regEmail" placeholder="vous@exemple.com" />
+      </div>
+      <button class="btn btn-success" style="width:100%;margin-bottom:.8rem" onclick="doRegister()">Créer le compte</button>
+      <button class="btn" style="width:100%;background:var(--border)" onclick="showLogin()">← Retour</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     MAIN APP
+══════════════════════════════════════════════ -->
+<div class="app" id="mainApp" style="display:none">
+  <nav class="sidebar">
+    <div class="logo">🤖 MCP IA</div>
+    <div class="nav-item active" onclick="showPage('overview')">📊 Vue d'ensemble</div>
+    <div class="nav-item" onclick="showPage('assistant')">💬 Assistant IA</div>
+    <div class="nav-item" onclick="showPage('finance')">💹 Finance</div>
+    <div class="nav-item" onclick="showPage('surveillance')">🖥 Surveillance</div>
+    <div class="nav-item" onclick="showPage('alerts')">🔔 Alertes</div>
+    <div style="flex:1"></div>
+    <div class="nav-item" onclick="logout()" style="color:var(--danger)">🚪 Déconnexion</div>
+  </nav>
+
+  <main class="main">
+
+    <!-- ─── Overview ─── -->
+    <div class="page active" id="page-overview">
+      <h2>Vue d'ensemble</h2>
+      <div class="cards" id="statsCards">
+        <div class="card accent"><div class="label">Requêtes total</div><div class="value" id="statQueries">—</div></div>
+        <div class="card green"><div class="label">Tokens utilisés</div><div class="value" id="statTokens">—</div></div>
+        <div class="card warn"><div class="label">Alertes actives</div><div class="value" id="statAlerts">—</div></div>
+        <div class="card"><div class="label">Plan</div><div class="value" id="statPlan" style="font-size:1.2rem">—</div></div>
+      </div>
+      <div class="charts-row">
+        <div class="chart-card">
+          <h3>Utilisation CPU & RAM</h3>
+          <canvas id="sysChart"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Activité récente</h3>
+          <div id="recentActivity"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Assistant IA ─── -->
+    <div class="page" id="page-assistant">
+      <h2>💬 Assistant IA</h2>
+      <div class="card" style="margin-bottom:1rem">
+        <div class="form-group">
+          <label>Prompt système (optionnel)</label>
+          <input type="text" id="sysPrompt" placeholder="Ex: Tu es un expert en Python..." />
+        </div>
+        <div class="form-group">
+          <label>Votre question</label>
+          <textarea id="userQuestion" placeholder="Posez votre question à Claude..."></textarea>
+        </div>
+        <button class="btn btn-primary" id="askBtn" onclick="askClaude()">Envoyer</button>
+      </div>
+      <div class="response-box" id="aiResponse"></div>
+    </div>
+
+    <!-- ─── Finance ─── -->
+    <div class="page" id="page-finance">
+      <h2>💹 Analyse Financière</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div class="card">
+          <h3>Cours en temps réel</h3>
+          <div class="form-group">
+            <label>Symbole</label>
+            <input type="text" id="quoteSymbol" placeholder="AAPL, TSLA, BTC-USD..." />
+          </div>
+          <button class="btn btn-primary" onclick="getQuote()">Obtenir le cours</button>
+          <div id="quoteResult" style="margin-top:1rem;display:none">
+            <div class="cards" style="grid-template-columns:1fr 1fr;margin:0">
+              <div class="card"><div class="label">Prix</div><div class="value" id="qPrice" style="font-size:1.3rem"></div></div>
+              <div class="card"><div class="label">Variation</div><div class="value" id="qChange" style="font-size:1.3rem"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Analyse IA</h3>
+          <div class="form-group">
+            <label>Symbole</label>
+            <input type="text" id="analyzeSymbol" placeholder="AAPL, NVDA..." />
+          </div>
+          <button class="btn btn-success" onclick="analyzeStock()">Analyser avec Claude</button>
+          <div class="response-box" id="analyzeResult" style="max-height:200px"></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Portefeuille</h3>
+        <div class="form-group">
+          <label>Positions JSON (ex: [{"symbol":"AAPL","quantity":10,"avg_price":150}])</label>
+          <textarea id="portfolioJson" placeholder='[{"symbol":"AAPL","quantity":10,"avg_price":150},{"symbol":"MSFT","quantity":5,"avg_price":300}]'></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="analyzePortfolio()">Analyser le portefeuille</button>
+        <div id="portfolioResult" style="margin-top:1rem"></div>
+      </div>
+    </div>
+
+    <!-- ─── Surveillance ─── -->
+    <div class="page" id="page-surveillance">
+      <h2>🖥 Surveillance Système</h2>
+      <div class="cards" id="sysMetricsCards">
+        <div class="card"><div class="label">CPU</div><div class="value" id="mCpu">—</div></div>
+        <div class="card"><div class="label">RAM</div><div class="value" id="mRam">—</div></div>
+        <div class="card"><div class="label">Disque</div><div class="value" id="mDisk">—</div></div>
+        <div class="card green"><div class="label">Statut</div><div class="value" id="mStatus" style="font-size:1rem">—</div></div>
+      </div>
+      <div class="chart-card" style="margin-bottom:1rem">
+        <h3>Évolution CPU & RAM (temps réel)</h3>
+        <canvas id="realtimeChart"></canvas>
+      </div>
+      <div class="card">
+        <h3>Métriques détaillées</h3>
+        <div id="metricsDetail"></div>
+        <button class="btn btn-primary" style="margin-top:0.8rem" onclick="refreshMetrics()">Actualiser</button>
+      </div>
+    </div>
+
+    <!-- ─── Alertes ─── -->
+    <div class="page" id="page-alerts">
+      <h2>🔔 Alertes</h2>
+      <div class="card" style="margin-bottom:1rem">
+        <h3>Créer une alerte</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr 2fr;gap:0.8rem;align-items:end">
+          <div class="form-group" style="margin:0">
+            <label>Niveau</label>
+            <select id="alertLevel"><option>INFO</option><option>WARNING</option><option>CRITICAL</option></select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label>Titre</label>
+            <input type="text" id="alertTitle" placeholder="Titre de l'alerte" />
+          </div>
+          <div class="form-group" style="margin:0">
+            <label>Message</label>
+            <input type="text" id="alertMsg" placeholder="Description..." />
+          </div>
+        </div>
+        <button class="btn btn-primary" style="margin-top:0.8rem" onclick="createAlert()">Créer</button>
+      </div>
+      <div id="alertsList"></div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+const API = 'http://localhost:8000/api';
+let token = localStorage.getItem('mcp_token');
+let sysChartInst, realtimeChartInst;
+const realtimeData = { cpu: Array(20).fill(0), ram: Array(20).fill(0), labels: Array(20).fill('') };
+
+// ─── Auth ───────────────────────────────────
+function showRegister() { document.getElementById('loginForm').style.display='none'; document.getElementById('registerForm').style.display='block'; }
+function showLogin()    { document.getElementById('registerForm').style.display='none'; document.getElementById('loginForm').style.display='block'; }
+
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value;
+  const r = await fetch(`${API}/login`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, name:''}) });
+  if (!r.ok) { alert('Identifiants incorrects ou compte inexistant'); return; }
+  const d = await r.json();
+  localStorage.setItem('mcp_token', d.api_token);
+  token = d.api_token;
+  bootApp();
+}
+
+async function doRegister() {
+  const name = document.getElementById('regName').value;
+  const email = document.getElementById('regEmail').value;
+  const r = await fetch(`${API}/register`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, name}) });
+  const d = await r.json();
+  if (!r.ok) { alert(d.detail); return; }
+  localStorage.setItem('mcp_token', d.api_token);
+  token = d.api_token;
+  bootApp();
+}
+
+function logout() {
+  localStorage.removeItem('mcp_token');
+  location.reload();
+}
+
+// ─── App boot ───────────────────────────────
+function bootApp() {
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'flex';
+  loadStats();
+  initCharts();
+  setInterval(refreshSysMetrics, 5000);
+  refreshSysMetrics();
+}
+
+if (token) bootApp();
+
+// ─── Navigation ─────────────────────────────
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(`page-${id}`).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (id === 'alerts') loadAlerts();
+  if (id === 'surveillance') refreshMetrics();
+}
+
+// ─── Stats ──────────────────────────────────
+async function loadStats() {
+  const r = await authFetch('/stats');
+  if (!r.ok) return;
+  const d = await r.json();
+  document.getElementById('statQueries').textContent = d.queries_total;
+  document.getElementById('statTokens').textContent = d.tokens_used.toLocaleString();
+  document.getElementById('statAlerts').textContent = d.unread_alerts;
+  document.getElementById('statPlan').textContent = d.user.plan.toUpperCase();
+
+  const box = document.getElementById('recentActivity');
+  box.innerHTML = d.recent_activity.map(a =>
+    `<div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--border);font-size:.85rem">
+       <span class="badge badge-blue">${a.tool}</span>
+       <span style="color:var(--muted)">${a.created_at.slice(0,16)}</span>
+     </div>`
+  ).join('') || '<p style="color:var(--muted);font-size:.85rem">Aucune activité</p>';
+}
+
+// ─── Charts ─────────────────────────────────
+function initCharts() {
+  const opts = { responsive: true, animation: false, plugins: { legend: { labels: { color:'#e2e8f0' } } }, scales: { x: { ticks:{color:'#64748b'}, grid:{color:'#2a2d3e'} }, y: { ticks:{color:'#64748b'}, grid:{color:'#2a2d3e'}, min:0, max:100 } } };
+  sysChartInst = new Chart(document.getElementById('sysChart'), {
+    type:'bar',
+    data: { labels:['CPU','RAM','Disque'], datasets:[{label:'Utilisation %',data:[0,0,0],backgroundColor:['rgba(108,99,255,.7)','rgba(0,212,170,.7)','rgba(255,165,2,.7)'],borderRadius:4}] },
+    options: {...opts, scales: {...opts.scales, y:{...opts.scales.y, max:100}}}
+  });
+  realtimeChartInst = new Chart(document.getElementById('realtimeChart'), {
+    type:'line',
+    data: {
+      labels: realtimeData.labels,
+      datasets: [
+        {label:'CPU %',data:realtimeData.cpu,borderColor:'#6c63ff',backgroundColor:'rgba(108,99,255,.1)',tension:.4,fill:true,pointRadius:0},
+        {label:'RAM %',data:realtimeData.ram,borderColor:'#00d4aa',backgroundColor:'rgba(0,212,170,.1)',tension:.4,fill:true,pointRadius:0},
+      ]
+    },
+    options: opts
+  });
+}
+
+// ─── System metrics ─────────────────────────
+async function refreshSysMetrics() {
+  const r = await authFetch('/system/metrics');
+  if (!r.ok) return;
+  const d = await r.json();
+
+  // Update cards
+  document.getElementById('mCpu').textContent  = d.cpu_pct + '%';
+  document.getElementById('mRam').textContent  = d.ram_pct + '%';
+  document.getElementById('mDisk').textContent = d.disk_pct + '%';
+  const ok = d.cpu_pct < 80 && d.ram_pct < 85 && d.disk_pct < 90;
+  const status = document.getElementById('mStatus');
+  status.textContent = ok ? '✅ Normal' : '⚠️ Alerte';
+  status.style.color = ok ? 'var(--accent2)' : 'var(--warn)';
+
+  // Update bar chart
+  if (sysChartInst) {
+    sysChartInst.data.datasets[0].data = [d.cpu_pct, d.ram_pct, d.disk_pct];
+    sysChartInst.update();
+  }
+
+  // Update realtime chart
+  const t = d.timestamp.slice(11,19);
+  realtimeData.labels.push(t); realtimeData.labels.shift();
+  realtimeData.cpu.push(d.cpu_pct); realtimeData.cpu.shift();
+  realtimeData.ram.push(d.ram_pct); realtimeData.ram.shift();
+  if (realtimeChartInst) realtimeChartInst.update();
+
+  // Metrics detail
+  document.getElementById('metricsDetail').innerHTML = `
+    ${metricBar('CPU', d.cpu_pct)}
+    ${metricBar('RAM', d.ram_pct, `${d.ram_used_gb} / ${d.ram_total_gb} Go`)}
+    ${metricBar('Disque', d.disk_pct, `${d.disk_free_gb} Go libres`)}
+  `;
+}
+
+function refreshMetrics() { refreshSysMetrics(); }
+
+function metricBar(name, pct, sub = '') {
+  const color = pct > 85 ? 'var(--danger)' : pct > 70 ? 'var(--warn)' : 'var(--accent2)';
+  return `<div class="metric-bar">
+    <div class="info"><span>${name}</span><span>${sub || pct + '%'}</span></div>
+    <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>
+  </div>`;
+}
+
+// ─── Assistant ───────────────────────────────
+async function askClaude() {
+  const q = document.getElementById('userQuestion').value.trim();
+  if (!q) return;
+  const btn = document.getElementById('askBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> En cours...';
+  const box = document.getElementById('aiResponse');
+  box.style.display = 'none';
+
+  const r = await authFetch('/ask', 'POST', {
+    question: q,
+    system_prompt: document.getElementById('sysPrompt').value,
+  });
+  btn.disabled = false; btn.textContent = 'Envoyer';
+  if (!r.ok) { alert('Erreur API'); return; }
+  const d = await r.json();
+  box.textContent = d.answer;
+  box.style.display = 'block';
+}
+
+// ─── Finance ─────────────────────────────────
+async function getQuote() {
+  const sym = document.getElementById('quoteSymbol').value.trim();
+  if (!sym) return;
+  const r = await authFetch('/finance/quote', 'POST', { symbol: sym });
+  if (!r.ok) { alert('Symbole introuvable'); return; }
+  const d = await r.json();
+  document.getElementById('qPrice').textContent = `${d.price} ${d.currency}`;
+  const chEl = document.getElementById('qChange');
+  const pos = d.change_pct >= 0;
+  chEl.textContent = `${pos ? '+' : ''}${d.change_pct}%`;
+  chEl.style.color = pos ? 'var(--accent2)' : 'var(--danger)';
+  document.getElementById('quoteResult').style.display = 'block';
+}
+
+async function analyzeStock() {
+  const sym = document.getElementById('analyzeSymbol').value.trim();
+  if (!sym) return;
+  const box = document.getElementById('analyzeResult');
+  box.style.display = 'block'; box.textContent = '⏳ Analyse en cours...';
+  const r = await authFetch('/finance/analyze', 'POST', { symbol: sym });
+  if (!r.ok) { box.textContent = 'Erreur'; return; }
+  const d = await r.json();
+  box.textContent = d.analysis;
+}
+
+async function analyzePortfolio() {
+  let positions;
+  try { positions = JSON.parse(document.getElementById('portfolioJson').value); }
+  catch { alert('JSON invalide'); return; }
+  const r = await authFetch('/finance/portfolio', 'POST', { positions });
+  if (!r.ok) { alert('Erreur'); return; }
+  const d = await r.json();
+  const tbody = d.positions.map(p => `
+    <tr>
+      <td><strong>${p.symbol}</strong></td>
+      <td>${p.quantity}</td>
+      <td>${p.avg_price}</td>
+      <td>${p.current_price}</td>
+      <td style="color:${p.pnl >= 0 ? 'var(--accent2)' : 'var(--danger)'}">
+        ${p.pnl >= 0 ? '+' : ''}${p.pnl} (${p.pnl_pct}%)
+      </td>
+    </tr>`).join('');
+  document.getElementById('portfolioResult').innerHTML = `
+    <table><thead><tr><th>Symbole</th><th>Qté</th><th>Prix moy.</th><th>Prix act.</th><th>P&L</th></tr></thead>
+    <tbody>${tbody}</tbody></table>
+    <div style="text-align:right;margin-top:.5rem;font-weight:700">
+      Valeur totale : ${d.total_value.toLocaleString()} $
+    </div>`;
+}
+
+// ─── Alerts ──────────────────────────────────
+async function createAlert() {
+  const r = await authFetch('/alerts', 'POST', {
+    level: document.getElementById('alertLevel').value,
+    title: document.getElementById('alertTitle').value,
+    message: document.getElementById('alertMsg').value,
+  });
+  if (r.ok) { loadAlerts(); document.getElementById('alertTitle').value = ''; document.getElementById('alertMsg').value = ''; }
+}
+
+async function loadAlerts() {
+  const r = await authFetch('/alerts');
+  if (!r.ok) return;
+  const d = await r.json();
+  document.getElementById('alertsList').innerHTML = d.alerts.length
+    ? d.alerts.map(a => `<div class="alert-item ${a.level}">
+        <strong>${a.level}</strong> — ${a.title}<br>
+        <span>${a.message}</span><br>
+        <span class="ts">${a.created_at.slice(0,16)}</span>
+      </div>`).join('')
+    : '<p style="color:var(--muted)">Aucune alerte.</p>';
+}
+
+// ─── Helpers ─────────────────────────────────
+function authFetch(path, method = 'GET', body = null) {
+  const opts = { method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  return fetch(API + path, opts);
+}
+
+// ─── PWA : Service Worker ────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => console.log('[PWA] Service Worker enregistré', reg.scope))
+      .catch(err => console.warn('[PWA] SW non enregistré :', err));
+  });
+}
+
+// ─── PWA : Bouton "Installer l'app" ──────────
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  showInstallBanner();
+});
+
+function showInstallBanner() {
+  if (document.getElementById('installBanner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'installBanner';
+  banner.style.cssText = `
+    position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);
+    background:#1a1d27;border:1px solid #6c63ff;border-radius:12px;
+    padding:.8rem 1.2rem;display:flex;align-items:center;gap:.8rem;
+    box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:9999;font-size:.88rem;
+  `;
+  banner.innerHTML = `
+    <span>📱 Installer MCP IA comme application</span>
+    <button onclick="installPWA()" style="padding:.4rem .9rem;background:#6c63ff;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600">Installer</button>
+    <button onclick="this.parentElement.remove()" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:1.1rem">✕</button>
+  `;
+  document.body.appendChild(banner);
+}
+
+async function installPWA() {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  const { outcome } = await deferredInstallPrompt.userChoice;
+  if (outcome === 'accepted') document.getElementById('installBanner')?.remove();
+  deferredInstallPrompt = null;
+}
+
+window.addEventListener('appinstalled', () => {
+  document.getElementById('installBanner')?.remove();
+  console.log('[PWA] Application installée !');
+});
+
+// ─── Détection Electron ──────────────────────
+if (window.electronAPI?.isElectron) {
+  console.log('[Desktop] Mode Electron détecté — plateforme :', window.electronAPI.platform);
+}
+</script>
+</body>
+</html>
