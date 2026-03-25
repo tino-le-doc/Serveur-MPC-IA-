@@ -1,0 +1,31 @@
+# Node
+node_modules/
+package-lock.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Build outputs
+desktop/dist/
+desktop/node_modules/
+desktop/package-lock.json
+mobile/node_modules/
+mobile/package-lock.json
+
+# Databases
+*.db
+*.sqlite
+
+# Env
+.env
+
+# Android build intermediates
+android-build/build/
+android-build/output/
+android-build/*.args
+android-build/*.keystore
