@@ -297,19 +297,31 @@ ipcMain.handle('get-api-url', ()               => `http://localhost:${PORT}`);
 // ─── Lifecycle ───────────────────────────────
 app.whenReady().then(async () => {
   createSplash();
+  createTray();
 
+  let backendError = null;
   try {
     await startBackend();
     await waitForPort(PORT);
   } catch (err) {
     console.error('Backend non disponible :', err?.message);
-    dialog.showErrorBox('Erreur de démarrage',
-      `Impossible de démarrer le backend Python.\n\nAssurez-vous que Python 3.10+ est installe et que les dependances sont presentes.\n\n${err?.message || ''}`
-    );
+    backendError = err;
   }
 
   createMainWindow();
-  createTray();
+
+  // Afficher l'erreur après la création de la fenêtre principale
+  if (backendError) {
+    mainWindow.once('ready-to-show', () => {
+      dialog.showMessageBox(mainWindow, {
+        type: 'warning',
+        title: 'Backend Python non démarré',
+        message: 'Impossible de démarrer le backend Python.',
+        detail: `Assurez-vous que Python 3.10+ est installé et que les dépendances sont présentes.\n\n${backendError.message || ''}`,
+        buttons: ['OK'],
+      });
+    });
+  }
 });
 
 app.on('window-all-closed', () => {
@@ -317,8 +329,10 @@ app.on('window-all-closed', () => {
 });
 
 app.on('activate', () => {
-  if (!mainWindow) createMainWindow();
-  else mainWindow.show();
+  if (app.isReady()) {
+    if (!mainWindow) createMainWindow();
+    else mainWindow.show();
+  }
 });
 
 app.on('before-quit', () => {
