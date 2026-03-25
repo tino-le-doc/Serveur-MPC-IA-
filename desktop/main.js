@@ -3,11 +3,30 @@
  * Démarre le backend FastAPI Python, puis ouvre la fenêtre Electron
  */
 
-const { app, BrowserWindow, Menu, Tray, shell, dialog, ipcMain, nativeTheme } = require('electron');
+const { app, BrowserWindow, Menu, Tray, shell, dialog, ipcMain } = require('electron');
 const path  = require('path');
 const { spawn, exec } = require('child_process');
 const http  = require('http');
 const fs    = require('fs');
+
+// ─── Store simplifié (remplace electron-store ESM) ──────────────────────────
+class SimpleStore {
+  constructor() {
+    this.file = path.join(app.getPath('userData'), 'preferences.json');
+    try {
+      this._data = JSON.parse(fs.readFileSync(this.file, 'utf8'));
+    } catch {
+      this._data = {};
+    }
+  }
+  get(key) { return this._data[key]; }
+  set(key, value) {
+    this._data[key] = value;
+    fs.writeFileSync(this.file, JSON.stringify(this._data, null, 2));
+  }
+}
+
+const store = new SimpleStore();
 
 // ─── Configuration ───────────────────────────
 const PORT     = 8000;
@@ -31,13 +50,9 @@ function getResourcePath(...parts) {
 // ─── Démarrer le backend Python (FastAPI) ────
 function startBackend() {
   return new Promise((resolve, reject) => {
-    const saasPath   = getResourcePath('saas', 'backend', 'main.py');
-    const pythonCmd  = process.platform === 'win32' ? 'python' : 'python3';
-
-    // Lire la clé API depuis les préférences ou l'environnement
-    const Store = require('electron-store');
-    const store = new Store();
-    const apiKey = store.get('anthropic_api_key') || process.env.ANTHROPIC_API_KEY || '';
+    const saasPath  = getResourcePath('saas', 'backend', 'main.py');
+    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+    const apiKey    = store.get('anthropic_api_key') || process.env.ANTHROPIC_API_KEY || '';
 
     console.log(`[MCP IA] Démarrage backend : ${saasPath}`);
 
@@ -47,7 +62,7 @@ function startBackend() {
       PORT: String(PORT),
     };
 
-    apiProcess = spawn(pythonCmd, [saasPath], {
+    apiProcess = spawn(pythonCmd, ['-u', saasPath], {
       env,
       cwd: getResourcePath('saas', 'backend'),
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -77,7 +92,7 @@ function startBackend() {
       reject(err);
     });
 
-    // Timeout de secours : attendre 15 secondes max
+    // Timeout de secours : 15 secondes max
     setTimeout(() => {
       if (!apiReady) resolve();
     }, 15000);
@@ -140,7 +155,6 @@ function createMainWindow() {
     },
   });
 
-  // Charger le dashboard
   mainWindow.loadURL(`http://localhost:${PORT}`);
 
   mainWindow.once('ready-to-show', () => {
@@ -154,7 +168,6 @@ function createMainWindow() {
 
   mainWindow.on('closed', () => { mainWindow = null; });
 
-  // Liens externes → navigateur système
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };
@@ -180,20 +193,20 @@ function buildMenu() {
     {
       label: 'Modules',
       submenu: [
-        { label: '🧠 Assistant IA',    click: () => navigate('/') },
-        { label: '💹 Finance',          click: () => navigate('/?page=finance') },
-        { label: '🖥 Surveillance',      click: () => navigate('/?page=surveillance') },
-        { label: '🔔 Alertes',          click: () => navigate('/?page=alerts') },
+        { label: '🧠 Assistant IA',  click: () => navigate('/') },
+        { label: '💹 Finance',        click: () => navigate('/?page=finance') },
+        { label: '🖥 Surveillance',    click: () => navigate('/?page=surveillance') },
+        { label: '🔔 Alertes',        click: () => navigate('/?page=alerts') },
         { type: 'separator' },
-        { label: 'Recharger',           role: 'reload', accelerator: 'CmdOrCtrl+R' },
+        { label: 'Recharger', role: 'reload', accelerator: 'CmdOrCtrl+R' },
       ],
     },
     {
       label: 'Affichage',
       submenu: [
         { role: 'togglefullscreen', label: 'Plein écran' },
-        { role: 'zoomin',  label: 'Zoom +', accelerator: 'CmdOrCtrl+=' },
-        { role: 'zoomout', label: 'Zoom -', accelerator: 'CmdOrCtrl+-' },
+        { role: 'zoomin',    label: 'Zoom +', accelerator: 'CmdOrCtrl+=' },
+        { role: 'zoomout',   label: 'Zoom -', accelerator: 'CmdOrCtrl+-' },
         { role: 'resetzoom', label: 'Zoom normal' },
       ],
     },
@@ -213,8 +226,8 @@ function buildMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
-function navigate(path) {
-  if (mainWindow) mainWindow.loadURL(`http://localhost:${PORT}${path}`);
+function navigate(p) {
+  if (mainWindow) mainWindow.loadURL(`http://localhost:${PORT}${p}`);
 }
 
 // ─── Préférences (clé API) ───────────────────
@@ -233,20 +246,17 @@ function openPreferences() {
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true },
   });
 
-  // Charger les prefs inline
-  const Store = require('electron-store');
-  const store = new Store();
   const current = store.get('anthropic_api_key') || '';
 
   prefsWindow.loadURL(`data:text/html,${encodeURIComponent(`
     <!DOCTYPE html>
     <html style="background:#1a1d27;color:#e2e8f0;font-family:system-ui;padding:2rem">
-    <h2 style="margin-bottom:1rem">⚙️ Préférences</h2>
-    <label style="font-size:.85rem;color:#64748b">Clé API Anthropic</label>
+    <h2 style="margin-bottom:1rem">Preferences</h2>
+    <label style="font-size:.85rem;color:#64748b">Cle API Anthropic</label>
     <input id="key" type="password" value="${current}"
       style="width:100%;padding:.6rem;background:#0f1117;border:1px solid #2a2d3e;border-radius:8px;color:#e2e8f0;font-size:.9rem;margin-top:.4rem">
     <div style="margin-top:.5rem;font-size:.8rem;color:#64748b">
-      Obtenez votre clé sur <a href="https://console.anthropic.com" style="color:#6c63ff">console.anthropic.com</a>
+      Obtenez votre cle sur <a href="https://console.anthropic.com" style="color:#6c63ff">console.anthropic.com</a>
     </div>
     <button onclick="save()" style="margin-top:1.5rem;padding:.65rem 1.4rem;background:#6c63ff;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600">
       Enregistrer
@@ -263,13 +273,11 @@ function openPreferences() {
   prefsWindow.on('closed', () => { prefsWindow = null; });
 }
 
-// ─── Tray (Windows / Mac barre de menus) ────
+// ─── Tray ────────────────────────────────────
 function createTray() {
   const iconPath = path.join(__dirname, 'assets',
     process.platform === 'win32' ? 'tray.ico' : 'tray.png');
-
   if (!fs.existsSync(iconPath)) return;
-
   tray = new Tray(iconPath);
   tray.setToolTip(APP_NAME);
   const menu = Menu.buildFromTemplate([
@@ -282,17 +290,9 @@ function createTray() {
 }
 
 // ─── IPC Handlers ────────────────────────────
-ipcMain.handle('save-pref', (_, key, value) => {
-  const Store = require('electron-store');
-  new Store().set(key, value);
-});
-
-ipcMain.handle('get-pref', (_, key) => {
-  const Store = require('electron-store');
-  return new Store().get(key);
-});
-
-ipcMain.handle('get-api-url', () => `http://localhost:${PORT}`);
+ipcMain.handle('save-pref',   (_, key, value) => store.set(key, value));
+ipcMain.handle('get-pref',    (_, key)         => store.get(key));
+ipcMain.handle('get-api-url', ()               => `http://localhost:${PORT}`);
 
 // ─── Lifecycle ───────────────────────────────
 app.whenReady().then(async () => {
@@ -304,7 +304,7 @@ app.whenReady().then(async () => {
   } catch (err) {
     console.error('Backend non disponible :', err?.message);
     dialog.showErrorBox('Erreur de démarrage',
-      `Impossible de démarrer le backend Python.\n\nAssurez-vous que Python 3.10+ est installé et que les dépendances sont présentes.\n\n${err?.message || ''}`
+      `Impossible de démarrer le backend Python.\n\nAssurez-vous que Python 3.10+ est installe et que les dependances sont presentes.\n\n${err?.message || ''}`
     );
   }
 
@@ -333,7 +333,7 @@ app.on('before-quit', () => {
   }
 });
 
-// Sécurité : bloquer le chargement de ressources externes non autorisées
+// Sécurité : liens externes → navigateur système
 app.on('web-contents-created', (_, contents) => {
   contents.on('will-navigate', (event, url) => {
     if (!url.startsWith(`http://localhost:${PORT}`)) {
