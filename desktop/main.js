@@ -88,8 +88,9 @@ function startBackend() {
     });
 
     apiProcess.on('error', (err) => {
-      console.error('[API] Impossible de démarrer Python :', err.message);
-      reject(err);
+      console.error('[API] Python non disponible :', err.message);
+      // ENOENT = python3 non installé → mode démo silencieux
+      resolve();
     });
 
     // Timeout de secours : 15 secondes max
@@ -317,29 +318,15 @@ app.whenReady().then(async () => {
   createSplash();
   createTray();
 
-  let backendError = null;
   try {
     await startBackend();
     await waitForPort(PORT);
   } catch (err) {
     console.error('Backend non disponible :', err?.message);
-    backendError = err;
+    // Le mode démo dans dashboard.html gère l'affichage côté UI
   }
 
   createMainWindow();
-
-  // Afficher l'erreur après la création de la fenêtre principale
-  if (backendError) {
-    mainWindow.once('ready-to-show', () => {
-      dialog.showMessageBox(mainWindow, {
-        type: 'warning',
-        title: 'Backend Python non démarré',
-        message: 'Impossible de démarrer le backend Python.',
-        detail: `Assurez-vous que Python 3.10+ est installé et que les dépendances sont présentes.\n\n${backendError.message || ''}`,
-        buttons: ['OK'],
-      });
-    });
-  }
 });
 
 app.on('window-all-closed', () => {
