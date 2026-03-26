@@ -137,6 +137,11 @@ function createSplash() {
   splashWindow.center();
 }
 
+// Chemin vers le dashboard HTML embarqué (fallback sans backend)
+function getDashboardPath() {
+  return getResourcePath('saas', 'frontend', 'dashboard.html');
+}
+
 // ─── Fenêtre principale ──────────────────────
 function createMainWindow() {
   mainWindow = new BrowserWindow({
@@ -155,7 +160,20 @@ function createMainWindow() {
     },
   });
 
-  mainWindow.loadURL(`http://localhost:${PORT}`);
+  // Charger le backend si disponible, sinon le fichier HTML local
+  if (apiReady) {
+    mainWindow.loadURL(`http://localhost:${PORT}`);
+  } else {
+    mainWindow.loadFile(getDashboardPath());
+  }
+
+  // Si le backend répond après coup, recharger depuis localhost
+  mainWindow.webContents.on('did-fail-load', () => {
+    const dashPath = getDashboardPath();
+    if (fs.existsSync(dashPath)) {
+      mainWindow.loadFile(dashPath);
+    }
+  });
 
   mainWindow.once('ready-to-show', () => {
     if (splashWindow && !splashWindow.isDestroyed()) {

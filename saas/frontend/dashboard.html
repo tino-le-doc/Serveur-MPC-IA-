@@ -12,7 +12,16 @@
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <title>MCP IA — Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script>
+    // Charge Chart.js de façon non-bloquante avec fallback
+    (function(){
+      var s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+      s.async = true;
+      s.onerror = function(){ window._chartjsFailed = true; };
+      document.head.appendChild(s);
+    })();
+  </script>
   <style>
     :root {
       --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3e;
@@ -313,7 +322,16 @@
 const API = 'http://localhost:8000/api';
 let token = localStorage.getItem('mcp_token');
 let sysChartInst, realtimeChartInst;
+let DEMO_MODE = false;
 const realtimeData = { cpu: Array(20).fill(0), ram: Array(20).fill(0), labels: Array(20).fill('') };
+
+// ─── Vérifier si le backend est disponible ───
+async function checkBackend() {
+  try {
+    const r = await fetch(`${API}/stats`, { signal: AbortSignal.timeout(2000) });
+    return r.ok || r.status === 401;
+  } catch { return false; }
+}
 
 // ─── Auth ───────────────────────────────────
 function showRegister() { document.getElementById('loginForm').style.display='none'; document.getElementById('registerForm').style.display='block'; }
@@ -345,17 +363,56 @@ function logout() {
   location.reload();
 }
 
+// ─── Mode démo (sans backend) ────────────────
+function bootDemo() {
+  DEMO_MODE = true;
+  token = 'demo';
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'flex';
+
+  // Bannière mode démo
+  const banner = document.createElement('div');
+  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#ffa502;color:#000;text-align:center;padding:.4rem;font-size:.82rem;font-weight:600;z-index:9999';
+  banner.textContent = '⚠️ Mode démo — Backend Python non démarré. Lancez le serveur pour activer toutes les fonctionnalités.';
+  document.body.prepend(banner);
+
+  // Données démo
+  document.getElementById('statQueries').textContent = '42';
+  document.getElementById('statTokens').textContent = '12 450';
+  document.getElementById('statAlerts').textContent = '2';
+  document.getElementById('statPlan').textContent = 'FREE';
+  document.getElementById('recentActivity').innerHTML = '<p style="color:var(--muted);font-size:.85rem">Démarrez le backend pour voir l\'activité</p>';
+  document.getElementById('mCpu').textContent  = '--';
+  document.getElementById('mRam').textContent  = '--';
+  document.getElementById('mDisk').textContent = '--';
+  document.getElementById('mStatus').textContent = '⚡ Backend requis';
+
+  waitAndInitCharts();
+}
+
 // ─── App boot ───────────────────────────────
 function bootApp() {
   document.getElementById('authScreen').style.display = 'none';
   document.getElementById('mainApp').style.display = 'flex';
   loadStats();
-  initCharts();
+  waitAndInitCharts();
   setInterval(refreshSysMetrics, 5000);
   refreshSysMetrics();
 }
 
-if (token) bootApp();
+// Attendre que Chart.js soit chargé puis init
+function waitAndInitCharts() {
+  if (typeof Chart !== 'undefined') { initCharts(); return; }
+  setTimeout(waitAndInitCharts, 200);
+}
+
+// Démarrage : token existant → bootApp, sinon vérifier backend
+(async function init() {
+  if (token) { bootApp(); return; }
+  const backendOk = await checkBackend();
+  if (!backendOk) { bootDemo(); return; }
+  // Backend dispo mais pas de token : afficher l'écran de connexion normalement
+})();
 
 // ─── Navigation ─────────────────────────────
 function showPage(id) {
