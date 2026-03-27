@@ -9,9 +9,9 @@ const OFFLINE_URL   = '/offline.html';
 
 // Ressources à mettre en cache immédiatement
 const STATIC_ASSETS = [
-  '/',
-  '/manifest.json',
-  'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',
+  './',
+  'manifest.json',
+  'chart.min.js',
 ];
 
 // ─── Install ──────────────────────────────────
@@ -88,7 +88,7 @@ async function cacheFirstWithNetwork(request) {
     }
     return response;
   } catch {
-    return caches.match('/') || new Response('Hors ligne', { status: 503 });
+    return caches.match('./') || new Response('Hors ligne', { status: 503 });
   }
 }
 
@@ -99,8 +99,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title || 'MCP IA', {
       body:    data.body    || '',
-      icon:    '/icons/icon-192.png',
-      badge:   '/icons/icon-96.png',
+      icon:    'icons/icon-192x192.png',
+      badge:   'icons/icon-96x96.png',
       tag:     data.tag     || 'mcp-ia',
       vibrate: [200, 100, 200],
       data:    { url: data.url || '/' },
