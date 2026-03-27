@@ -9,19 +9,11 @@
   <meta name="apple-mobile-web-app-title" content="MCP IA" />
   <meta name="theme-color" content="#6c63ff" />
   <meta name="description" content="Plateforme IA multi-modules propulsée par Claude" />
-  <link rel="manifest" href="/manifest.json" />
-  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192x192.png" />
   <title>MCP IA — Dashboard</title>
-  <script>
-    // Charge Chart.js de façon non-bloquante avec fallback
-    (function(){
-      var s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
-      s.async = true;
-      s.onerror = function(){ window._chartjsFailed = true; };
-      document.head.appendChild(s);
-    })();
-  </script>
+  <!-- Chart.js bundlé localement — pas de CDN, fonctionne hors-ligne -->
+  <script src="chart.min.js"></script>
   <style>
     :root {
       --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3e;
@@ -406,12 +398,18 @@ function waitAndInitCharts() {
   setTimeout(waitAndInitCharts, 200);
 }
 
-// Démarrage : token existant → bootApp, sinon vérifier backend
+// Démarrage immédiat — pas de délai d'attente
 (async function init() {
-  if (token) { bootApp(); return; }
+  if (token) {
+    // Token existant : vérifier silencieusement si le backend répond
+    const ok = await checkBackend();
+    if (ok) { bootApp(); } else { bootDemo(); }
+    return;
+  }
+  // Pas de token : vérifier backend avec timeout court
   const backendOk = await checkBackend();
   if (!backendOk) { bootDemo(); return; }
-  // Backend dispo mais pas de token : afficher l'écran de connexion normalement
+  // Backend dispo : montrer l'écran de connexion
 })();
 
 // ─── Navigation ─────────────────────────────
@@ -615,7 +613,7 @@ function authFetch(path, method = 'GET', body = null) {
 // ─── PWA : Service Worker ────────────────────
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
+    navigator.serviceWorker.register('sw.js')
       .then(reg => console.log('[PWA] Service Worker enregistré', reg.scope))
       .catch(err => console.warn('[PWA] SW non enregistré :', err));
   });
