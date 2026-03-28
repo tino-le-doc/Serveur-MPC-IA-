@@ -213,6 +213,17 @@ function buildMenu() {
       { type: 'separator' },
       { role: 'quit', label: 'Quitter MCP IA' },
     ]}] : []),
+    { label: 'Édition', submenu: [
+      { role: 'undo',        label: 'Annuler' },
+      { role: 'redo',        label: 'Rétablir' },
+      { type: 'separator' },
+      { role: 'cut',         label: 'Couper' },
+      { role: 'copy',        label: 'Copier' },
+      { role: 'paste',       label: 'Coller' },
+      { role: 'pasteAndMatchStyle', label: 'Coller sans mise en forme' },
+      { role: 'delete',      label: 'Supprimer' },
+      { role: 'selectAll',   label: 'Tout sélectionner' },
+    ]},
     { label: 'Modules', submenu: [
       { label: '🧠 Assistant IA',  click: nav('/') },
       { label: '💹 Finance',        click: nav('/?page=finance') },
