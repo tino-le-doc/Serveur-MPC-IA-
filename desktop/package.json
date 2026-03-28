@@ -23,23 +23,18 @@
     ],
     "extraResources": [
       {
-        "from": "../saas",
-        "to": "saas",
+        "from": "../frontend",
+        "to": "frontend",
         "filter": ["**/*"]
       },
       {
-        "from": "../finance",
-        "to": "finance",
+        "from": "../api",
+        "to": "api",
         "filter": ["**/*"]
       },
       {
-        "from": "../surveillance",
-        "to": "surveillance",
-        "filter": ["**/*"]
-      },
-      {
-        "from": "../ultra",
-        "to": "ultra",
+        "from": "../modules",
+        "to": "modules",
         "filter": ["**/*"]
       }
     ],

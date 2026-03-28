@@ -46,7 +46,7 @@ function getResourcePath(...parts) {
 }
 
 // ─── Serveur HTTP statique embarqué ─────────────────────────────────────────
-// Sert saas/frontend/ sur http://localhost:STATIC_PORT
+// Sert frontend/ sur http://localhost:STATIC_PORT
 // Résout tous les problèmes file:// (manifest, icons, sw.js, chemins absolus)
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -61,7 +61,7 @@ const MIME = {
 
 function startStaticServer() {
   return new Promise((resolve) => {
-    const frontendDir = getResourcePath('saas', 'frontend');
+    const frontendDir = getResourcePath('frontend');
 
     staticServer = http.createServer((req, res) => {
       let reqPath = url.parse(req.url).pathname;
@@ -101,7 +101,7 @@ function startStaticServer() {
 // ─── Backend Python (FastAPI) ────────────────────────────────────────────────
 function startBackend() {
   return new Promise((resolve) => {
-    const saasPath  = getResourcePath('saas', 'backend', 'main.py');
+    const saasPath  = getResourcePath('api', 'main.py');
     const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
     const apiKey    = store.get('anthropic_api_key') || process.env.ANTHROPIC_API_KEY || '';
 
@@ -114,7 +114,7 @@ function startBackend() {
 
     apiProcess = spawn(pythonCmd, ['-u', saasPath], {
       env,
-      cwd: getResourcePath('saas', 'backend'),
+      cwd: getResourcePath('api'),
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 
